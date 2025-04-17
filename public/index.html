@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtime Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="auth">
+        <h2>Enter Chat</h2>
+        <label>Username: <input id="username" type="text"></label><br>
+        <label>Password: <input id="password" type="text" readonly></label><br>
+        <button onclick="joinChat()">Join</button>
+    </div>
+    <div id="profile" style="display: none;">
+        <h2>Profile</h2>
+        <label>Username: <input id="profile-username" type="text"></label><br>
+        <label>Password: <input id="profile-password" type="text"></label><br>
+        <div class="color-picker">
+            <label>Chat Background Color:</label><br>
+            <div id="color-options"></div>
+        </div>
+        <div id="stats">
+            <h3>Statistics</h3>
+            <p>Messages Sent: <span id="messages-sent">0</span></p>
+            <p>Time Spent: <span id="time-spent">0</span> seconds</p>
+        </div>
+        <button onclick="updateProfile()">Save</button>
+        <button onclick="logout()">Logout</button>
+        <button onclick="closeProfile()">Cancel</button>
+    </div>
+    <div id="chat-container">
+        <button id="profile-btn">Profile</button>
+        <div id="user-list">
+            <h3>Users</h3>
+        </div>
+        <div id="chat-area">
+            <div id="messages"></div>
+            <input id="message-input" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') sendMessage()">
+        </div>
+    </div>
+    <script src="/script.js"></script>
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row =>
+                    row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+                );
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+    </script>
+</body>
+</html>
