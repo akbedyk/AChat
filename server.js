@@ -1,24 +1,21 @@
 const express = require('express');
+const app = express();
+
 const http = require('http');
+const server = http.createServer(app);
+
 const socketIo = require('socket.io');
+const io = socketIo(server);
+
 const { connectDB } = require('./server/config/db');
 const chatSocket = require('./server/socket/chat');
 
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+connectDB(); // Подключение к MongoDB
 
-// Подключение к MongoDB
-connectDB();
+app.use(express.static('public')); // Настройка статических файлов
+app.use('/', require('./server/routes/index')); // Маршруты
 
-// Настройка статических файлов
-app.use(express.static('public'));
-
-// Маршруты
-app.use('/', require('./server/routes/index'));
-
-// Socket.io
-chatSocket(io);
+chatSocket(io); // Socket.io
 
 server.listen(3000, () => {
     console.log('Server running on http://localhost:3000');

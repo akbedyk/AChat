@@ -3,6 +3,8 @@ let currentUser = null;
 let selectedUser = null;
 let userNumber = Math.floor(Math.random() * 1000);
 
+const PASSWORD_LENGTH = 8
+
 // Цветовая палитра (светлые и темные мягкие тона)
 const colorPalette = [
     '#f0f0f0', // Светло-серый
@@ -24,7 +26,7 @@ document.getElementById('chat-area').style.background = selectedColor;
 function generatePassword() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let password = '';
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < PASSWORD_LENGTH; i++) {
         password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return password;
@@ -52,11 +54,6 @@ function startTimeTracking() {
     }, 10000); // Каждые 10 секунд
 }
 
-socket.on('stats', ({ messagesSent, timeSpent }) => {
-    document.getElementById('messages-sent').textContent = messagesSent;
-    document.getElementById('time-spent').textContent = timeSpent;
-});
-
 function sendMessage() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
@@ -76,6 +73,68 @@ function appendMessage(text, type) {
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
 }
+
+function updateColorPicker() {
+    const colorOptions = document.getElementById('color-options');
+    colorOptions.innerHTML = '';
+    colorPalette.forEach(color => {
+        const div = document.createElement('div');
+        div.className = 'color-option';
+        div.style.background = color;
+        if (color === selectedColor) div.classList.add('selected');
+        div.onclick = () => {
+            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            div.classList.add('selected');
+            selectedColor = color;
+            document.getElementById('chat-area').style.background = color;
+        };
+        colorOptions.appendChild(div);
+    });
+}
+
+// Show profile
+document.getElementById('profile-btn').onclick = () => {
+    document.getElementById('profile').style.display = 'block';
+    document.getElementById('profile-username').value = currentUser;
+    document.getElementById('profile-password').value = generatePassword();
+    updateColorPicker();
+    socket.emit('getStats', { username: currentUser });
+};
+
+function updateProfile() {
+    const newUsername = document.getElementById('profile-username').value;
+    const newPassword = document.getElementById('profile-password').value;
+    socket.emit('updateProfile', { username: currentUser, newUsername, newPassword, color: selectedColor });
+    currentUser = newUsername;
+    closeProfile();
+}
+
+function closeProfile() {
+    document.getElementById('profile').style.display = 'none';
+}
+
+function logout() {
+    socket.emit('logout', { username: currentUser });
+    document.getElementById('chat-container').style.display = 'none';
+    document.getElementById('auth').style.display = 'block';
+    document.getElementById('username').value = `User${userNumber}`;
+    document.getElementById('password').value = generatePassword();
+    selectedColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+    document.getElementById('auth').style.background = selectedColor;
+    document.getElementById('chat-area').style.background = selectedColor;
+    currentUser = null;
+    selectedUser = null;
+    closeProfile()
+}
+
+// ************************ Soket.io Events ************************
+
+// Receive user color
+socket.on('userColor', ({ color }) => {
+    selectedColor = color;
+    document.getElementById('chat-area').style.background = color;
+    updateColorPicker();
+});
 
 // Update user list
 socket.on('userList', users => {
@@ -112,64 +171,8 @@ socket.on('history', messages => {
     });
 });
 
-function updateColorPicker() {
-    const colorOptions = document.getElementById('color-options');
-    colorOptions.innerHTML = '';
-    colorPalette.forEach(color => {
-        const div = document.createElement('div');
-        div.className = 'color-option';
-        div.style.background = color;
-        if (color === selectedColor) div.classList.add('selected');
-        div.onclick = () => {
-            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
-            div.classList.add('selected');
-            selectedColor = color;
-            document.getElementById('chat-area').style.background = color;
-        };
-        colorOptions.appendChild(div);
-    });
-}
-
-// Show profile
-document.getElementById('profile-btn').onclick = () => {
-    document.getElementById('profile').style.display = 'block';
-    document.getElementById('profile-username').value = currentUser;
-    document.getElementById('profile-password').value = generatePassword();
-    updateColorPicker();
-    socket.emit('getStats', { username: currentUser });
-};
-
-// Update profile
-function updateProfile() {
-    const newUsername = document.getElementById('profile-username').value;
-    const newPassword = document.getElementById('profile-password').value;
-    socket.emit('updateProfile', { username: currentUser, newUsername, newPassword, color: selectedColor });
-    currentUser = newUsername;
-    closeProfile();
-}
-
-// Close profile
-function closeProfile() {
-    document.getElementById('profile').style.display = 'none';
-}
-
-// Logout
-function logout() {
-    socket.emit('logout', { username: currentUser });
-    document.getElementById('chat-container').style.display = 'none';
-    document.getElementById('auth').style.display = 'block';
-    document.getElementById('username').value = `User${userNumber}`;
-    document.getElementById('password').value = generatePassword();
-    selectedColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-    document.getElementById('auth').style.background = selectedColor;
-    document.getElementById('chat-area').style.background = selectedColor;
-    currentUser = null;
-    selectedUser = null;
-}
-
-// Receive user color
-socket.on('userColor', ({ color }) => {
-    selectedColor = color;
-    document.getElementById('chat-area').style.background = color;
-    updateColorPicker();
+// Statistic update
+socket.on('stats', ({ messagesSent, timeSpent }) => {
+    document.getElementById('messages-sent').textContent = messagesSent;
+    document.getElementById('time-spent').textContent = timeSpent;
 });
