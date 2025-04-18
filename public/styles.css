@@ -88,3 +88,10 @@ body {
 #stats p {
     margin: 5px 0;
 }
+.info {
+    opacity: 1;
+    transition: opacity 0.5s;
+}
+.info.hidden {
+    opacity: 0;
+}

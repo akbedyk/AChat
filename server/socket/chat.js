@@ -25,10 +25,32 @@ module.exports = (io) => {
             socket.emit('userColor', { color: user.color });
         });
 
+        socket.on('typing', ({ to }) => {
+            if (!users[to]) {
+                socket.emit('error', { message: 'Recipient not found' });
+                return;
+            }
+            const recipient = Object.values(users).find(user => user.socketId === users[to].socketId);
+            if (recipient) io.to(recipient.socketId).emit('typing', { from: socket.username });
+        });
+
+        socket.on('stopTyping', ({ to }) => {
+            if (!users[to]) {
+                socket.emit('error', { message: 'Recipient not found' });
+                return;
+            }
+            const recipient = Object.values(users).find(user => user.socketId === users[to].socketId);
+            if (recipient) io.to(recipient.socketId).emit('stopTyping', { from: socket.username });
+        });
+
         socket.on('privateMessage', async ({ to, message }) => {
+            if (!users[to]) {
+                socket.emit('error', { message: 'Recipient not found' });
+                return;
+            }
             const recipient = Object.values(users).find(user => user.socketId === users[to].socketId);
             if (recipient) {
-                await Message.create({
+                await Message.create({ 
                     from: socket.username,
                     to,
                     message,
@@ -41,12 +63,9 @@ module.exports = (io) => {
                 );
                 io.to(recipient.socketId).emit('privateMessage', { from: socket.username, message });
                 socket.emit('privateMessage', { from: socket.username, message });
-            };
-            Stats.findOneAndUpdate(
-                { username: socket.username },
-                { $inc: { messagesSent: 1 } },
-                { upsert: true }
-            );
+            }   else {
+                socket.emit('error', { message: 'Recipient is offline' });
+            }
         });
 
         socket.on('loadHistory', async ({ withUser }) => {

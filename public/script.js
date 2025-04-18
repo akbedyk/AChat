@@ -3,8 +3,6 @@ let currentUser = null;
 let selectedUser = null;
 let userNumber = Math.floor(Math.random() * 1000);
 
-const PASSWORD_LENGTH = 8
-
 // Цветовая палитра (светлые и темные мягкие тона)
 const colorPalette = [
     '#f0f0f0', // Светло-серый
@@ -21,6 +19,8 @@ let selectedColor = colorPalette[Math.floor(Math.random() * colorPalette.length)
 // Установка случайного цвета фона для начального меню
 document.getElementById('auth').style.background = selectedColor;
 document.getElementById('chat-area').style.background = selectedColor;
+
+const PASSWORD_LENGTH = 8
 
 // Generate random password
 function generatePassword() {
@@ -54,6 +54,23 @@ function startTimeTracking() {
     }, 10000); // Каждые 10 секунд
 }
 
+// "typing..." indicator
+let typingTimer;
+let isTyping = false;
+
+document.getElementById('message-input').oninput = () => {
+    if (isTyping) return;
+    if (selectedUser) {
+        socket.emit('typing', { to: selectedUser });
+        isTyping = true;
+    }
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        socket.emit('stopTyping', { to: selectedUser });
+        isTyping = false;
+    }, 1000);
+};
+
 function sendMessage() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
@@ -67,6 +84,16 @@ function sendMessage() {
 // Append message to chat
 function appendMessage(text, type) {
     const messages = document.getElementById('messages');
+    const child = messages.lastChild
+
+    if (type !== 'info') {
+        const lastInfo = Array.from(messages.children).find(el => el.className === 'info');
+        if (lastInfo) {
+            lastInfo.remove();
+            console.log('Remove info msg type:' + lastInfo.textContent)
+        }
+    }
+
     const div = document.createElement('div');
     div.textContent = text;
     div.style.color = type === 'sent' ? 'blue' : 'black';
@@ -129,6 +156,10 @@ function logout() {
 
 // ************************ Soket.io Events ************************
 
+socket.on('error', ({ message }) => {
+    console.error(`${message}`);
+});
+
 // Receive user color
 socket.on('userColor', ({ color }) => {
     selectedColor = color;
@@ -156,10 +187,30 @@ socket.on('userList', users => {
     });
 });
 
+// add "typing..." indicator
+socket.on('typing', ({ from }) => {
+    if (from === selectedUser) {
+        appendMessage(`${from} is typing...`, 'info');
+    }
+});
+
+// clear "typing..." indicator
+socket.on('stopTyping', ({ from }) => {
+    if (from === selectedUser) {
+        const lastInfo = Array.from(document.getElementById('messages').children)
+            .find(el => el.className === 'info');
+        if (lastInfo) lastInfo.remove();
+    }
+});
+
 // Receive private message
 socket.on('privateMessage', ({ from, message }) => {
     if (from === selectedUser || from === currentUser) {
         appendMessage(`${from}: ${message}`, 'received');
+    } else {
+        new Notification(`New message from ${from}`, { body: message });
+        const audio = new Audio('notification.mp3');
+        audio.play();
     }
 });
 
