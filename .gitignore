@@ -12,6 +12,7 @@ ToDo*.md
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Runtime data
+data/
 pids
 *.pid
 *.seed

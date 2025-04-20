@@ -81,22 +81,20 @@ function sendMessage() {
     }
 }
 
+function removeChild(id, childClass) {
+    const child = Array.from(document.getElementById(id).children)
+            .find(el => el.className === childClass);
+    if (child) child.remove();
+}
+
 // Append message to chat
-function appendMessage(text, type) {
-    const messages = document.getElementById('messages');
-    const child = messages.lastChild
-
-    if (type !== 'info') {
-        const lastInfo = Array.from(messages.children).find(el => el.className === 'info');
-        if (lastInfo) {
-            lastInfo.remove();
-            console.log('Remove info msg type:' + lastInfo.textContent)
-        }
-    }
-
+function appendMessage(text, className) {
+    removeChild('messages', 'info')
     const div = document.createElement('div');
+    div.className = className;
     div.textContent = text;
-    div.style.color = type === 'sent' ? 'blue' : 'black';
+    div.style.color = className === 'sent' ? 'blue' : 'black';
+    const messages = document.getElementById('messages');
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
 }
@@ -197,9 +195,7 @@ socket.on('typing', ({ from }) => {
 // clear "typing..." indicator
 socket.on('stopTyping', ({ from }) => {
     if (from === selectedUser) {
-        const lastInfo = Array.from(document.getElementById('messages').children)
-            .find(el => el.className === 'info');
-        if (lastInfo) lastInfo.remove();
+        removeChild('messages', 'info');
     }
 });
 
