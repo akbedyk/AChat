@@ -15,14 +15,16 @@ const colorPalette = [
     '#708090'  // Сланцево-серый
 ];
 let selectedColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+document.documentElement.style.setProperty('--chat-bg-color', selectedColor);
 
 // Установка случайного цвета фона для начального меню
 document.getElementById('auth').style.background = selectedColor;
 document.getElementById('chat-area').style.background = selectedColor;
 
+//const generatePassword = require('pswd').generatePassword
+
 const PASSWORD_LENGTH = 8
 
-// Generate random password
 function generatePassword() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let password = '';
@@ -32,13 +34,19 @@ function generatePassword() {
     return password;
 }
 
-// Set default username and password
+// username + password по умолчанию
 document.getElementById('username').value = `User${userNumber}`;
 document.getElementById('password').value = generatePassword();
 
 function joinChat() {
     const username = document.getElementById('username').value || `User${userNumber}`;
     const password = document.getElementById('password').value;
+
+    // Запрашиваем разрешение на уведомления, если не предоставлено
+    Notification.requestPermission().then(permission => {
+        console.log('Notification permission:', permission);
+    });
+
     socket.emit('join', { username, password, color: selectedColor });
     document.getElementById('auth').style.display = 'none';
     document.getElementById('chat-container').style.display = 'flex';
@@ -54,7 +62,7 @@ function startTimeTracking() {
     }, 10000); // Каждые 10 секунд
 }
 
-// "typing..." indicator
+// "typing..." индикатор
 let typingTimer;
 let isTyping = false;
 
@@ -87,7 +95,6 @@ function removeChild(id, childClass) {
     if (child) child.remove();
 }
 
-// Append message to chat
 function appendMessage(text, className) {
     removeChild('messages', 'info')
     const div = document.createElement('div');
@@ -97,6 +104,29 @@ function appendMessage(text, className) {
     const messages = document.getElementById('messages');
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
+}
+
+function showNotification(title, body) {
+    // Проверяем, активна ли вкладка
+    if (document.visibilityState === 'hidden' && Notification.permission === 'granted') {
+        let isToggled = false;
+        const originalTitle = document.title;
+        const blink = setInterval(() => {
+            document.title = isToggled ? 'New Message!' : originalTitle;
+            isToggled = !isToggled;
+        }, 1000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                clearInterval(blink);
+                document.title = originalTitle;
+            }
+        }, { once: true });
+        if (Notification.permission === 'granted') {
+            new Notification(title, { body }); // , icon: 'png/icon_chat.png' });
+            const audio = new Audio('/notification.mp3');
+            audio.play().catch(err => console.error('Audio play error:', err));
+        }
+    }
 }
 
 function updateColorPicker() {
@@ -112,6 +142,8 @@ function updateColorPicker() {
             div.classList.add('selected');
             selectedColor = color;
             document.getElementById('chat-area').style.background = color;
+            document.documentElement.style.setProperty('--chat-bg-color', color);
+            document.querySelector('.user.selected')?.style.setProperty('background', color);
         };
         colorOptions.appendChild(div);
     });
@@ -174,8 +206,13 @@ socket.on('userList', users => {
             const userDiv = document.createElement('div');
             userDiv.className = 'user';
             userDiv.textContent = username;
+            if (username === selectedUser) {
+                userDiv.classList.add('selected');
+            }
             userDiv.onclick = () => {
                 selectedUser = username;
+                document.querySelectorAll('.user').forEach(div => div.classList.remove('selected', 'blinking'));
+                userDiv.classList.add('selected');
                 document.getElementById('messages').innerHTML = '';
                 appendMessage(`Chatting with ${username}`, 'info');
                 socket.emit('loadHistory', { withUser: username });
@@ -185,32 +222,34 @@ socket.on('userList', users => {
     });
 });
 
-// add "typing..." indicator
+// "typing..." индикатор
 socket.on('typing', ({ from }) => {
     if (from === selectedUser) {
         appendMessage(`${from} is typing...`, 'info');
     }
 });
 
-// clear "typing..." indicator
 socket.on('stopTyping', ({ from }) => {
     if (from === selectedUser) {
         removeChild('messages', 'info');
     }
 });
 
-// Receive private message
 socket.on('privateMessage', ({ from, message }) => {
     if (from === selectedUser || from === currentUser) {
         appendMessage(`${from}: ${message}`, 'received');
     } else {
-        new Notification(`New message from ${from}`, { body: message });
-        const audio = new Audio('notification.mp3');
-        audio.play();
+        showNotification(`New message from ${from}`, message);
+        const userDiv = Array.from(document.getElementById('user-list').children)
+            .find(div => div.textContent === from && div.className.includes('user'));
+        if (userDiv && !userDiv.classList.contains('selected')) {
+            userDiv.classList.add('blinking');
+            setTimeout(() => userDiv.classList.remove('blinking'), 3000);
+        }
     }
 });
 
-// Receive history
+// history сообщение
 socket.on('history', messages => {
     messages.forEach(msg => {
         const type = msg.from === currentUser ? 'sent' : 'received';
@@ -218,7 +257,7 @@ socket.on('history', messages => {
     });
 });
 
-// Statistic update
+// Обновление статистики пользователя
 socket.on('stats', ({ messagesSent, timeSpent }) => {
     document.getElementById('messages-sent').textContent = messagesSent;
     document.getElementById('time-spent').textContent = timeSpent;

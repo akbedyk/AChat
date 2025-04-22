@@ -1,4 +1,4 @@
-body {
+    body {
     font-family: Arial, sans-serif;
     margin: 0;
     display: flex;
@@ -40,6 +40,17 @@ body {
 }
 .user:hover {
     background: #ddd;
+}
+.user.selected {
+    background: var(--chat-bg-color); /* Постоянный фон для выбранного пользователя */
+}
+.user.blinking {
+    animation: blink 1s ease-in-out infinite; /* Анимация мигания */
+}
+@keyframes blink {
+    0% { background: var(--chat-bg-color); }
+    50% { background: rgba(0, 0, 0, 0.2); }
+    100% { background: var(--chat-bg-color); }
 }
 #chat-area {
     flex: 1;
